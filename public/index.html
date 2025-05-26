@@ -123,6 +123,67 @@
         flex-shrink: 0;
       }
 
+      .warning-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        font-family: "Press Start 2P", "Courier New", monospace;
+      }
+
+      .warning-box {
+        background-color: #8b4513;
+        border: 4px solid #ffd700;
+        padding: 20px;
+        text-align: center;
+        max-width: 80%;
+        box-shadow: 4px 4px 0px #654321;
+        position: relative;
+      }
+
+      .warning-title {
+        color: #ffd700;
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 0px #654321;
+      }
+
+      .warning-message {
+        color: #fff;
+        font-size: 16px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      .reload-button {
+        background: #ffd700;
+        color: #8b4513;
+        border: none;
+        padding: 10px 20px;
+        font-family: "Press Start 2P", "Courier New", monospace;
+        font-size: 14px;
+        cursor: pointer;
+        text-transform: uppercase;
+        box-shadow: 3px 3px 0px #654321;
+        transition: all 0.1s ease;
+      }
+
+      .reload-button:hover {
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0px #654321;
+      }
+
+      .reload-button:active {
+        transform: translate(3px, 3px);
+        box-shadow: none;
+      }
+
       /* Custom scrollbar for better visibility */
       textarea::-webkit-scrollbar,
       .last-message::-webkit-scrollbar {
@@ -171,9 +232,37 @@
       </div>
     </div>
 
+    <div class="warning-overlay" id="warningOverlay">
+      <div class="warning-box">
+        <div class="warning-title">⚠️ CONNECTION LOST ⚠️</div>
+        <div class="warning-message">
+          The server has gone to sleep!<br />
+          Please reload the page to reconnect.
+        </div>
+        <button class="reload-button" onclick="window.location.reload()">
+          RELOAD PAGE
+        </button>
+      </div>
+    </div>
+
     <script>
-      const socket = io();
+      const socket = io({
+        reconnection: false, // Disable automatic reconnection
+      });
       let currentRoom = null;
+      let isDisconnected = false;
+
+      function showWarning() {
+        if (!isDisconnected) {
+          isDisconnected = true;
+          document.getElementById("warningOverlay").style.display = "flex";
+        }
+      }
+
+      function hideWarning() {
+        isDisconnected = false;
+        document.getElementById("warningOverlay").style.display = "none";
+      }
 
       function joinRoom() {
         const roomInput = document.getElementById("roomCode");
@@ -213,11 +302,18 @@
 
       socket.on("connect", () => {
         document.getElementById("status").textContent = "Connected to server";
+        hideWarning();
       });
 
       socket.on("disconnect", () => {
         document.getElementById("status").textContent =
           "Disconnected from server";
+        showWarning();
+      });
+
+      socket.on("connect_error", () => {
+        document.getElementById("status").textContent = "Connection error";
+        showWarning();
       });
     </script>
   </body>
