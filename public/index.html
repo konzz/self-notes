@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -85,41 +85,90 @@
         gap: 20px;
       }
 
-      textarea {
+      textarea,
+      .last-message {
         width: 100%;
-        height: 45%;
         padding: 15px;
         border: 2px solid #444;
         border-radius: 4px;
         background-color: #333;
         color: #fff;
         font-size: 14px;
-        resize: none;
         font-family: "Courier New", Courier, monospace;
         line-height: 1.5;
+        box-sizing: border-box;
+      }
+
+      textarea {
+        height: 45%;
+        resize: none;
         tab-size: 4;
         overflow-y: auto;
       }
 
-      .last-message {
+      .last-message-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         width: 100%;
         height: 45%;
-        padding: 15px;
-        border: 2px solid #444;
-        border-radius: 4px;
-        background-color: #333;
-        color: #fff;
-        font-size: 14px;
+        min-height: 0;
+      }
+
+      .last-message-header {
+        display: flex;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+
+      .copy-button {
+        padding: 0 12px;
+        font-size: 10px;
+        background: #8b4513;
+        color: #ffd700;
+        border: 3px solid #654321;
+        box-shadow: 3px 3px 0px #654321;
+        transition: all 0.1s ease;
+        text-shadow: 1px 1px 0px #654321;
+        height: 32px;
+        line-height: 26px;
+        font-family: "Press Start 2P", "Courier New", monospace;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+      }
+
+      .copy-button:hover {
+        background-color: #a0522d;
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0px #654321;
+      }
+
+      .copy-button:active {
+        transform: translate(3px, 3px);
+        box-shadow: none;
+      }
+
+      .copy-button.copied {
+        background: #2d5a27;
+        border-color: #1a3d16;
+        box-shadow: 3px 3px 0px #1a3d16;
+        color: #90ee90;
+      }
+
+      .last-message {
+        flex: 1;
+        min-height: 0;
         white-space: pre-wrap;
         overflow-y: auto;
-        font-family: "Courier New", Courier, monospace;
-        line-height: 1.5;
       }
 
       .status {
         margin-top: 10px;
         color: #888;
         font-size: 14px;
+        font-family: "Press Start 2P", "Courier New", monospace;
+        letter-spacing: 1px;
         flex-shrink: 0;
       }
 
@@ -207,6 +256,16 @@
         background: #666;
       }
 
+      .credit {
+        position: fixed;
+        bottom: 12px;
+        right: 20px;
+        margin: 0;
+        font-style: italic;
+        font-size: 12px;
+        color: #666;
+      }
+
       @import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
     </style>
   </head>
@@ -227,10 +286,24 @@
           id="notesInput"
           placeholder="Type or paste your notes here..."
         ></textarea>
-        <div class="last-message" id="lastMessage"></div>
+        <div class="last-message-section">
+          <div class="last-message-header">
+            <button
+              type="button"
+              class="copy-button"
+              id="copyButton"
+              onclick="copyLastMessage()"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="last-message" id="lastMessage"></div>
+        </div>
         <div class="status" id="status"></div>
       </div>
     </div>
+
+    <p class="credit">Developed by Patricia Fernandez</p>
 
     <div class="warning-overlay" id="warningOverlay">
       <div class="warning-box">
@@ -281,9 +354,8 @@
         socket.emit("join-room", roomCode);
 
         document.getElementById("notesContainer").style.display = "block";
-        document.getElementById(
-          "status"
-        ).textContent = `Connected to room: ${roomCode}`;
+        document.getElementById("status").textContent =
+          `Connected to room: ${roomCode}`;
       }
 
       const notesInput = document.getElementById("notesInput");
@@ -315,6 +387,42 @@
         document.getElementById("status").textContent = "Connection error";
         showWarning();
       });
+
+      let copyFeedbackTimeout = null;
+
+      async function copyLastMessage() {
+        const text = document.getElementById("lastMessage").textContent;
+        const button = document.getElementById("copyButton");
+
+        if (!text) {
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textarea);
+        }
+
+        button.textContent = "Copied!";
+        button.classList.add("copied");
+
+        if (copyFeedbackTimeout) {
+          clearTimeout(copyFeedbackTimeout);
+        }
+
+        copyFeedbackTimeout = setTimeout(() => {
+          button.textContent = "Copy";
+          button.classList.remove("copied");
+        }, 1500);
+      }
     </script>
   </body>
 </html>
