@@ -324,6 +324,9 @@
       });
       let currentRoom = null;
       let isDisconnected = false;
+      let lastSentMessage = null;
+      let sendTimeout = null;
+      const SEND_DEBOUNCE_MS = 250;
 
       function showWarning() {
         if (!isDisconnected) {
@@ -335,6 +338,44 @@
       function hideWarning() {
         isDisconnected = false;
         document.getElementById("warningOverlay").style.display = "none";
+      }
+
+      function sendNotes(immediate) {
+        if (!currentRoom || isDisconnected) {
+          return;
+        }
+
+        const message = notesInput.value;
+        if (message === lastSentMessage) {
+          return;
+        }
+
+        const emit = () => {
+          lastSentMessage = message;
+          // Broadcast to others only; update local preview without a round-trip.
+          socket.emit("message", {
+            roomCode: currentRoom,
+            message,
+          });
+          document.getElementById("lastMessage").textContent = message;
+        };
+
+        if (immediate) {
+          if (sendTimeout) {
+            clearTimeout(sendTimeout);
+            sendTimeout = null;
+          }
+          emit();
+          return;
+        }
+
+        if (sendTimeout) {
+          clearTimeout(sendTimeout);
+        }
+        sendTimeout = setTimeout(() => {
+          sendTimeout = null;
+          emit();
+        }, SEND_DEBOUNCE_MS);
       }
 
       function joinRoom() {
@@ -351,6 +392,11 @@
         }
 
         currentRoom = roomCode;
+        lastSentMessage = null;
+        if (sendTimeout) {
+          clearTimeout(sendTimeout);
+          sendTimeout = null;
+        }
         socket.emit("join-room", roomCode);
 
         document.getElementById("notesContainer").style.display = "block";
@@ -360,12 +406,11 @@
 
       const notesInput = document.getElementById("notesInput");
       notesInput.addEventListener("input", () => {
-        if (currentRoom) {
-          socket.emit("message", {
-            roomCode: currentRoom,
-            message: notesInput.value,
-          });
-        }
+        sendNotes(false);
+      });
+      // Flush pending debounce on paste so large text ships once, soon after.
+      notesInput.addEventListener("paste", () => {
+        setTimeout(() => sendNotes(true), 0);
       });
 
       socket.on("message", (message) => {

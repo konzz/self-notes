@@ -6,7 +6,10 @@ require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+  // Default is 1e6 (1 MB); large pastes exceed that and drop the connection.
+  maxHttpBufferSize: 1e7, // 10 MB
+});
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, "public")));
@@ -22,7 +25,11 @@ io.on("connection", (socket) => {
 
   socket.on("message", (data) => {
     const { roomCode, message } = data;
-    io.to(roomCode).emit("message", message);
+    if (typeof message !== "string" || typeof roomCode !== "string") {
+      return;
+    }
+    // Skip the sender — they already update their local preview.
+    socket.to(roomCode).emit("message", message);
   });
 
   socket.on("disconnect", () => {
